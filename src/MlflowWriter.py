@@ -23,8 +23,7 @@ class MlflowExperimentManager:
                 name=experiment_name,
                 artifact_location=Path.cwd().joinpath("mlruns").as_posix(),
             )
-        else:
-            mlflow.set_experiment(experiment_name)
+        mlflow.set_experiment(experiment_name)
 
     def log_param_from_omegaconf_dict(
         self, params: DictConfig, prefix: str = ""
