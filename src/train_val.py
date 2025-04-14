@@ -12,7 +12,7 @@ def train(
     model,
     device,
     train_loader,
-    writer,
+    mlflow_manager,
     criterion,
     optimizer,
     scheduler,
@@ -84,13 +84,16 @@ def train(
         # print_freqごとに進行具合とloss表示
         if i % args.print_freq == 0:
             progress.display(i)
-            writer.log_metric("train/loss", losses.val, step=iteration)
-            writer.log_metric("train/Acc1", top1.val.item(), step=iteration)
-            writer.log_metric("train/Acc5", top5.val.item(), step=iteration)
+        mlflow_manager.log_metric("lr", optimizer.param_groups[0]["lr"], iteration)
+        mlflow_manager.log_metric("loss.train", loss.item(), iteration)
+        mlflow_manager.log_metric("acc1.train", acc1[0], iteration)
+        mlflow_manager.log_metric("acc5.train", acc5[0], iteration)
+        mlflow_manager.log_metric("top1.train", top1.avg, iteration)
+        mlflow_manager.log_metric("top5.train", top5.avg, iteration)
         iteration += 1
 
 
-def validate(args, model, device, val_loader, criterion, writer, iteration):
+def validate(args, model, device, val_loader, criterion, mlflow_manager, iteration):
     # ProgressMeter, AverageMeterの値初期化
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
@@ -136,10 +139,12 @@ def validate(args, model, device, val_loader, criterion, writer, iteration):
             end = time.time()  # 基準の時間更新
             if i % args.print_freq == 0:
                 progress.display(i)
+            mlflow_manager.log_metric("loss.val", loss.item(), iteration)
+            mlflow_manager.log_metric("acc1.val", acc1[0], iteration)
+            mlflow_manager.log_metric("acc5.val", acc5[0], iteration)
+            mlflow_manager.log_metric("top1.val", top1.avg, iteration)
+            mlflow_manager.log_metric("top5.val", top5.avg, iteration)
 
     # 精度等格納
     progress.display(i + 1)
-    writer.log_metric("val/loss", losses.avg, step=iteration)
-    writer.log_metric("val/Acc1", top1.avg.item(), step=iteration)
-    writer.log_metric("val/Acc5", top5.avg.item(), step=iteration)
     return top1.avg.item()

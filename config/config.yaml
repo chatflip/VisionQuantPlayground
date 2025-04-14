@@ -3,7 +3,7 @@ path2db: ./../datasets/food-101
 path2weight: weight
 num_classes: 101
 start_epoch: 1
-epochs: 2
+epochs: 1
 evaluate: false
 restart: false
 workers: 16

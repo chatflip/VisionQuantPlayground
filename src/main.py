@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import time
+from pathlib import Path
 
 import albumentations as A
 import hydra
@@ -11,7 +12,7 @@ from albumentations.pytorch import ToTensorV2
 from efficientnet_pytorch import EfficientNet
 
 from datasets import Food101Dataset
-from MlflowWriter import MlflowWriter
+from MlflowWriter import MlflowExperimentManager
 from mobilenet_v2 import mobilenet_v2
 from resnet import resnet50, resnet101
 from train_val import train, validate
@@ -84,10 +85,9 @@ def main(args):
     cwd = hydra.utils.get_original_cwd()
     seed_everything(args.seed)  # 乱数テーブル固定
     os.makedirs(os.path.join(cwd, args.path2weight), exist_ok=True)
-    writer = MlflowWriter("{}-{}".format(args.exp_name, args.arch.name))
-    for key in args:
-        writer.log_param(key, args[key])
-    writer.log_params_from_omegaconf_dict(args)
+    mlflow_manager = MlflowExperimentManager(args.exp_name)
+    mlflow_manager.log_param_from_omegaconf_dict(args)
+
     # torch.backends.cudnn.benchmark = True  # 再現性を無くして高速化
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
@@ -168,7 +168,7 @@ def main(args):
             model,
             device,
             train_loader,
-            writer,
+            mlflow_manager,
             criterion,
             optimizer,
             scheduler,
@@ -177,7 +177,9 @@ def main(args):
             args.apex,
         )
         iteration += len(train_loader)  # 1epoch終わった時のiterationを足す
-        acc = validate(args, model, device, val_loader, criterion, writer, iteration)
+        acc = validate(
+            args, model, device, val_loader, criterion, mlflow_manager, iteration
+        )
         scheduler.step()  # 学習率のスケジューリング更新
         is_best = acc > best_acc
         best_acc = max(acc, best_acc)
@@ -195,23 +197,11 @@ def main(args):
                 "best_acc": best_acc,
                 "args": args,
             }
-            torch.save(
-                checkpoint,
-                "{}/{}/{}_checkpoint.pth".format(cwd, args.path2weight, args.exp_name),
-            )
-            writer.log_artifact(
-                "{}/{}/{}_checkpoint.pth".format(cwd, args.path2weight, args.exp_name)
-            )
+            ckp_path = Path(f"{cwd}/{args.path2weight}/{args.exp_name}_checkpoint.pth")
+            torch.save(checkpoint, str(ckp_path))
+            mlflow_manager.log_artifact(ckp_path)
             model.to(device)
 
-    # Hydraの成果物をArtifactに保存
-    writer.log_artifact(os.path.join(os.getcwd(), ".hydra/config.yaml"))
-    writer.log_artifact(os.path.join(os.getcwd(), ".hydra/hydra.yaml"))
-    writer.log_artifact(os.path.join(os.getcwd(), ".hydra/overrides.yaml"))
-    writer.log_artifact(os.path.join(os.getcwd(), "main.log"))
-    writer.set_terminated()  # mlflow用のwriter閉じる
-    writer.move_mlruns()
-    # 実行時間表示
     endtime = time.time()
     interval = endtime - starttime
     print(
