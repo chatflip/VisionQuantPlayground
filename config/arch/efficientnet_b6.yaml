@@ -1,0 +1,6 @@
+name: efficientnet-b6
+image_size: 528
+crop_size: 528
+batch_size: 4
+min_lr: 0.0001
+max_lr: 0.001

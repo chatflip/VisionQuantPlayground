@@ -1,0 +1,6 @@
+name: resnet101
+image_size: 256
+crop_size: 224
+batch_size: 128
+min_lr: 0.0001
+max_lr: 0.001
