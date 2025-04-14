@@ -1,0 +1,18 @@
+[project]
+name = "template-python"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15.0",
+    "ruff>=0.11.5",
+    "mdformat==0.7.21",
+    "mdformat-footnote==0.1.1",
+    "mdformat-frontmatter==2.0.8",
+    "mdformat-gfm==0.4.1",
+]

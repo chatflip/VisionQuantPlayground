@@ -1,0 +1,17 @@
+{
+    // Python設定
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+    // ファイル除外設定
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/__pycache__": true,
+        "**/.pytest_cache": true,
+        "**/.mypy_cache": true,
+        "**/.ruff_cache": true,
+        "**/*.pyc": true
+    }
+}
