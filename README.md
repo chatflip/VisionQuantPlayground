@@ -14,6 +14,14 @@ pre-commit install
 
 ## Usage
 
+### Run
+
+```bash
+python src/download.py
+```
+
+### Lint & Format
+
 ```bash
 ruff format
 ruff check --fix .

@@ -1,10 +1,12 @@
 [project]
-name = "template-python"
+name = "visionquantplayground"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "torch>=2.6.0",
+    "torchvision>=0.21.0",
 ]
 
 [dependency-groups]
@@ -16,3 +18,4 @@ dev = [
     "mdformat-frontmatter==2.0.8",
     "mdformat-gfm==0.4.1",
 ]
+

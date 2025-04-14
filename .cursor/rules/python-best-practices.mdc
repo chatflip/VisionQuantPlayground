@@ -1,0 +1,10 @@
+---
+description: Best practices for Python development
+globs: **/*.py
+alwaysApply: false
+---
+- uvを使用して仮想環境を管理する
+- PEP8準拠のコーディングを行う
+- 全ての関数とメソッドに戻り値の型ヒントを付与
+- Google style形式のdocstringを採用
+- 適切なエラー処理とロギングを実装する
