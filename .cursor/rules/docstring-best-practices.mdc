@@ -4,3 +4,4 @@ globs: **/*.py
 alwaysApply: false
 ---
 - docstringは日本語で記述する
+- AttributesやArgsは型まで記述する
