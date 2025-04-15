@@ -8,4 +8,4 @@ alwaysApply: false
 - Any型の使用を最小限に抑える
 - 型ヒントは可能な限り具体的に指定
 - Optionalを使わず|を使って書くなど、python最新の記述方法を取り入れる
-- typing.Listの代わりにbuilt-inのlistを使用する（例：List[int] → list[int]）
+- typingのListはlist,Dictはdictなど組み込み型を使って下さい
