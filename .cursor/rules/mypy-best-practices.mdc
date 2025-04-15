@@ -8,3 +8,4 @@ alwaysApply: false
 - Any型の使用しない
 - 型ヒントは可能な限り具体的に指定
 - Optionalを使わず|を使って書くなど、python3.11で使用できる最新の記述方法を取り入れる
+- tupleやlist,dictなどの型ヒントはtypingではなく組み込み型を使う
