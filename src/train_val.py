@@ -63,8 +63,8 @@ def train(
             output, target, topk=(1, 5)
         )  # 予測した中で1番目と3番目までに正解がある率
         losses.update(loss.item(), images.size(0))
-        top1.update(acc1[0], images.size(0))
-        top5.update(acc5[0], images.size(0))
+        top1.update(acc1, images.size(0))
+        top5.update(acc5, images.size(0))
 
         optimizer.zero_grad()  # 勾配初期化
 
@@ -86,8 +86,8 @@ def train(
             progress.display(i)
         mlflow_manager.log_metric("lr", optimizer.param_groups[0]["lr"], iteration)
         mlflow_manager.log_metric("loss.train", loss.item(), iteration)
-        mlflow_manager.log_metric("acc1.train", acc1[0], iteration)
-        mlflow_manager.log_metric("acc5.train", acc5[0], iteration)
+        mlflow_manager.log_metric("acc1.train", acc1, iteration)
+        mlflow_manager.log_metric("acc5.train", acc5, iteration)
         mlflow_manager.log_metric("top1.train", top1.avg, iteration)
         mlflow_manager.log_metric("top5.train", top5.avg, iteration)
         iteration += 1
@@ -130,8 +130,8 @@ def validate(cfg, model, device, val_loader, criterion, mlflow_manager, iteratio
             acc1, acc5 = accuracy(
                 output, target, topk=(1, 5)
             )  # ラベルと合ってる率を算出
-            top1.update(acc1[0], images.size(0))
-            top5.update(acc5[0], images.size(0))
+            top1.update(acc1, images.size(0))
+            top5.update(acc5, images.size(0))
 
             batch_time.update(
                 time.time() - end
@@ -140,8 +140,8 @@ def validate(cfg, model, device, val_loader, criterion, mlflow_manager, iteratio
             if i % cfg.print_freq == 0:
                 progress.display(i)
             mlflow_manager.log_metric("loss.val", loss.item(), iteration)
-            mlflow_manager.log_metric("acc1.val", acc1[0], iteration)
-            mlflow_manager.log_metric("acc5.val", acc5[0], iteration)
+            mlflow_manager.log_metric("acc1.val", acc1, iteration)
+            mlflow_manager.log_metric("acc5.val", acc5, iteration)
             mlflow_manager.log_metric("top1.val", top1.avg, iteration)
             mlflow_manager.log_metric("top5.val", top5.avg, iteration)
 

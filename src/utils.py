@@ -1,72 +1,114 @@
-# -*- coding: utf-8 -*-
 import datetime
 import os
-import random
 import time
 from collections import defaultdict, deque
 from logging import getLogger
 
-import numpy as np
 import torch
 import torch.distributed as dist
 
 logger = getLogger(__name__)
 
 
-class SmoothedValue(object):
-    """Track a series of values and provide access to smoothed values over a
-    window or the global series average.
+class SmoothedValue:
+    """一連の値を追跡し、ウィンドウまたはグローバルな平均値に対する平滑化された値へのアクセスを提供するクラス。
+
+    Attributes:
+        deque (deque): 値の履歴を保持するキュー
+        total (float): 全値の合計
+        count (int): 値の個数
+        fmt (str): 文字列フォーマット
     """
 
-    def __init__(self, window_size=20, fmt=None):
+    def __init__(self, window_size: int = 20, fmt: str | None = None) -> None:
+        """SmoothedValueの初期化
+
+        Args:
+            window_size (int, optional): 履歴を保持するウィンドウサイズ. Defaults to 20.
+            fmt (str | None, optional): 文字列フォーマット. Defaults to None.
+        """
         if fmt is None:
             fmt = "{median:.4f} ({global_avg:.4f})"
-        self.deque = deque(maxlen=window_size)
-        self.total = 0.0
-        self.count = 0
-        self.fmt = fmt
+        self.deque: deque[float] = deque(maxlen=window_size)
+        self.total: float = 0.0
+        self.count: int = 0
+        self.fmt: str = fmt
 
-    def update(self, value, n=1):
+    def update(self, value: float, n: int = 1) -> None:
+        """新しい値を追加し、統計情報を更新する
+
+        Args:
+            value (float): 追加する値
+            n (int, optional): 値の重み. Defaults to 1.
+        """
         self.deque.append(value)
         self.count += n
         self.total += value * n
 
-    def synchronize_between_processes(self):
+    def synchronize_between_processes(self) -> None:
+        """プロセス間で統計情報を同期する
+
+        Note:
+            dequeは同期されません
         """
-        Warning: does not synchronize the deque!
-        """
-        if not is_dist_avail_and_initialized():
-            return
-        t = torch.tensor([self.count, self.total], dtype=torch.float64, device="cuda")
-        dist.barrier()
-        dist.all_reduce(t)
+        t = reduce_across_processes([self.count, self.total])
         t = t.tolist()
         self.count = int(t[0])
         self.total = t[1]
 
     @property
-    def median(self):
+    def median(self) -> float:
+        """中央値を計算する
+
+        Returns:
+            float: 中央値
+        """
         d = torch.tensor(list(self.deque))
         return d.median().item()
 
     @property
-    def avg(self):
+    def avg(self) -> float:
+        """平均値を計算する
+
+        Returns:
+            float: 平均値
+        """
         d = torch.tensor(list(self.deque), dtype=torch.float32)
         return d.mean().item()
 
     @property
-    def global_avg(self):
+    def global_avg(self) -> float:
+        """全値の平均を計算する
+
+        Returns:
+            float: 全値の平均
+        """
         return self.total / self.count
 
     @property
-    def max(self):
+    def max(self) -> float:
+        """最大値を取得する
+
+        Returns:
+            float: 最大値
+        """
         return max(self.deque)
 
     @property
-    def value(self):
+    def value(self) -> float:
+        """最新の値を取得する
+
+        Returns:
+            float: 最新の値
+        """
         return self.deque[-1]
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """文字列に変換する
+
+        Returns:
+            str: フォーマットされた文字列
+        """
         return self.fmt.format(
             median=self.median,
             avg=self.avg,
@@ -220,65 +262,34 @@ class ProgressMeter(object):
         return "[" + fmt + "/" + fmt.format(num_batches) + "]"
 
 
-# 精度計算用
-def accuracy(output, target, topk=(1,)):
-    """Computes the accuracy over the k top predictions for the specified values of k"""
-    with torch.no_grad():
+def accuracy(
+    output: torch.Tensor, target: torch.Tensor, topk: tuple[int, ...] = (1,)
+) -> list[float]:
+    """指定されたk値に対する上位k個の予測の精度を計算する
+
+    Args:
+        output (torch.Tensor): モデルの出力テンソル
+        target (torch.Tensor): 正解ラベルのテンソル
+        topk (tuple[int, ...], optional): 計算する上位k個の値. Defaults to (1,).
+
+    Returns:
+        list[float]: 各k値に対する精度のリスト（パーセンテージ）
+    """
+    with torch.inference_mode():
         maxk = max(topk)
         batch_size = target.size(0)
+        if target.ndim == 2:
+            target = target.max(dim=1)[1]
 
         _, pred = output.topk(maxk, 1, True, True)
         pred = pred.t()
-        correct = pred.eq(target.view(1, -1).expand_as(pred))
+        correct = pred.eq(target[None])
 
         res = []
         for k in topk:
-            correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
-            res.append(correct_k.mul_(100.0 / batch_size))
+            correct_k = correct[:k].flatten().sum(dtype=torch.float32)
+            res.append(correct_k * (100.0 / batch_size))
         return res
-
-
-def seed_everything(seed: int = 1234) -> None:
-    """乱数シードを設定し、再現性を確保する
-
-    Args:
-        seed (int, optional): 乱数シード. Defaults to 1234.
-
-    Note:
-        - Pythonの標準乱数生成器
-        - NumPyの乱数生成器
-        - PyTorchの乱数生成器（CPUとGPU）
-        - CuDNNの動作設定
-        - CUDAの動作設定
-        の全てにシードを設定します。
-    """
-    random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
-
-    np.random.seed(seed)
-
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.cuda.manual_seed(seed)
-
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
-
-    torch.use_deterministic_algorithms(True)
-
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-
-
-def seed_worker(worker_id: int) -> None:
-    """DataLoaderのワーカープロセスのシードを設定する
-
-    Args:
-        worker_id (int): ワーカープロセスのID
-    """
-    worker_seed = torch.initial_seed() % 2**32
-    np.random.seed(worker_seed)
-    random.seed(worker_seed)
-    torch.manual_seed(worker_seed)
 
 
 def is_dist_avail_and_initialized():
