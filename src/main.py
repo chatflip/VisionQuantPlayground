@@ -10,6 +10,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from albumentations.pytorch import ToTensorV2
+from omegaconf import DictConfig
+from torch.utils.data import DataLoader
 
 from datasets import Food101Dataset
 from MlflowExperimentManager import MlflowExperimentManager
@@ -19,7 +21,25 @@ from train_val import train, validate
 logger = getLogger(__name__)
 
 
-def load_data(cfg, image_height, image_width, mean, std):
+def load_data(
+    cfg: DictConfig,
+    image_height: int,
+    image_width: int,
+    mean: list[float],
+    std: list[float],
+) -> tuple[DataLoader, DataLoader]:
+    """データローダーを初期化する
+
+    Args:
+        cfg: DictConfig - 設定パラメータ
+        image_height: int - 画像の高さ
+        image_width: int - 画像の幅
+        mean: list[float] - 正規化のための平均値
+        std: list[float] - 正規化のための標準偏差
+
+    Returns:
+        tuple[DataLoader, DataLoader] - 訓練用と検証用のデータローダー
+    """
     normalize = A.Normalize(mean=mean, std=std, max_pixel_value=255.0)
     # 画像開いたところからtensorでNNに使えるようにするまでの変形
     train_transform = A.Compose(
@@ -81,7 +101,14 @@ def load_data(cfg, image_height, image_width, mean, std):
 
 
 @hydra.main(config_path="./../config", config_name="config", version_base="1.3")
-def main(cfg):
+def main(cfg: DictConfig) -> None:
+    """メイン実行関数
+
+    学習の実行、モデルの保存、MLflowによる実験管理を行う
+
+    Args:
+        cfg: DictConfig - hydraによって読み込まれた設定パラメータ
+    """
     logger.info(cfg)
     seed_everything(cfg.seed)
 
@@ -146,7 +173,7 @@ def main(cfg):
         acc = validate(
             cfg, model, device, val_loader, criterion, mlflow_manager, iteration
         )
-        scheduler.step()  # 学習率のスケジューリング更新
+        scheduler.step()  # type: ignore[no-untyped-call]
         is_best = acc > best_acc
         best_acc = max(acc, best_acc)
         if is_best:
@@ -158,7 +185,7 @@ def main(cfg):
             checkpoint = {
                 "model": model.cpu().state_dict(),
                 "optimizer": optimizer.state_dict(),
-                "scheduler": scheduler.state_dict(),
+                "scheduler": scheduler.state_dict(),  # type: ignore[no-untyped-call]
                 "epoch": epoch,
                 "best_acc": best_acc,
                 "cfg": cfg,
