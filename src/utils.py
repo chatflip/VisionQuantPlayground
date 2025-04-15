@@ -1,5 +1,4 @@
 from logging import getLogger
-from typing import Any
 
 import torch
 
