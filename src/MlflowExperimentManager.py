@@ -19,9 +19,7 @@ class MlflowExperimentManager:
         """
         exp = mlflow.get_experiment_by_name(experiment_name)
         if exp is None:
-            mlflow.create_experiment(
-                name=experiment_name
-            )
+            mlflow.create_experiment(name=experiment_name)
         mlflow.set_experiment(experiment_name)
         mlflow.enable_system_metrics_logging()  # type: ignore[no-untyped-call]
 

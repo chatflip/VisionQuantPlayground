@@ -5,19 +5,15 @@ from logging import getLogger
 
 import albumentations as A
 import hydra
+import timm
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from albumentations.pytorch import ToTensorV2
-from efficientnet_pytorch import EfficientNet
-import timm
-
 
 from datasets import Food101Dataset
 from MlflowExperimentManager import MlflowExperimentManager
-from mobilenet_v2 import mobilenet_v2
 from reproducibility import seed_everything, seed_worker
-from resnet import resnet50, resnet101
 from train_val import train, validate
 
 logger = getLogger(__name__)
@@ -111,9 +107,7 @@ def main(cfg):
     _, image_height, image_width = model.default_cfg["input_size"]
     mean = model.default_cfg["mean"]
     std = model.default_cfg["std"]
-    
-    
-    
+
     model.to(device)
 
     train_loader, val_loader = load_data(cfg, image_height, image_width, mean, std)
