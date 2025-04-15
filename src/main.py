@@ -22,7 +22,7 @@ from utils import get_worker_init, seed_everything
 logger = getLogger(__name__)
 
 
-def load_data(args):
+def load_data(cfg):
     normalize = A.Normalize(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], max_pixel_value=255.0
     )
@@ -30,7 +30,7 @@ def load_data(args):
     train_transform = A.Compose(
         [
             A.RandomResizedCrop(
-                size=(args.arch.crop_size, args.arch.crop_size),
+                size=(cfg.arch.crop_size, cfg.arch.crop_size),
             ),
             A.HorizontalFlip(),
             normalize,
@@ -40,8 +40,8 @@ def load_data(args):
 
     val_transform = A.Compose(
         [
-            A.Resize(args.arch.image_size, args.arch.image_size),
-            A.CenterCrop(args.arch.crop_size, args.arch.crop_size),
+            A.Resize(cfg.arch.image_size, cfg.arch.image_size),
+            A.CenterCrop(cfg.arch.crop_size, cfg.arch.crop_size),
             normalize,
             ToTensorV2(),
         ]
@@ -49,44 +49,44 @@ def load_data(args):
 
     # AnimeFaceの学習用データ設定
     train_dataset = Food101Dataset(
-        os.path.join(args.path2db),
+        os.path.join(cfg.dataset_path),
         "train",
         transform=train_transform,
     )
 
     # Food101の評価用データ設定
-    val_dataset = Food101Dataset(args.path2db, "test", transform=val_transform)
+    val_dataset = Food101Dataset(cfg.dataset_path, "test", transform=val_transform)
 
     train_loader = torch.utils.data.DataLoader(
         dataset=train_dataset,
-        batch_size=args.arch.batch_size,
+        batch_size=cfg.arch.batch_size,
         shuffle=True,
-        num_workers=args.workers,
+        num_workers=cfg.workers,
         pin_memory=True,
         drop_last=True,
-        worker_init_fn=get_worker_init(args.seed),
+        worker_init_fn=get_worker_init(cfg.seed),
     )
 
     val_loader = torch.utils.data.DataLoader(
         dataset=val_dataset,
-        batch_size=args.arch.batch_size,
+        batch_size=cfg.arch.batch_size,
         shuffle=False,
-        num_workers=args.workers,
+        num_workers=cfg.workers,
         pin_memory=True,
         drop_last=False,
-        worker_init_fn=get_worker_init(args.seed),
+        worker_init_fn=get_worker_init(cfg.seed),
     )
     return train_loader, val_loader
 
 
 @hydra.main(config_path="./../config", config_name="config", version_base="1.3")
-def main(args):
-    logger.info(args)
-    seed_everything(args.seed)  # 乱数テーブル固定
+def main(cfg):
+    logger.info(cfg)
+    seed_everything(cfg.seed)
 
-    os.makedirs(args.path2weight, exist_ok=True)
-    mlflow_manager = MlflowExperimentManager(args.exp_name)
-    mlflow_manager.log_param_from_omegaconf_dict(args)
+    cfg.ckpt_path.mkdir(parents=True, exist_ok=True)
+    mlflow_manager = MlflowExperimentManager(cfg.exp_name)
+    mlflow_manager.log_param_from_omegaconf_dict(cfg)
 
     # torch.backends.cudnn.benchmark = True  # 再現性を無くして高速化
     device = torch.device(
@@ -94,44 +94,31 @@ def main(args):
     )  # cpuとgpu自動選択 (pytorch0.4.0以降の書き方)
     multigpu = torch.cuda.device_count() > 1  # グラボ2つ以上ならmultigpuにする
 
-    train_loader, val_loader = load_data(args)
+    train_loader, val_loader = load_data(cfg)
 
-    if args.arch.name == "mobilenet_v2":
-        model = mobilenet_v2(pretrained=True, num_classes=args.num_classes)
-    elif args.arch.name == "resnet50":
+    if cfg.arch.name == "mobilenet_v2":
+        model = mobilenet_v2(pretrained=True, num_classes=cfg.num_classes)
+    elif cfg.arch.name == "resnet50":
         model = resnet50(pretrained=True)
         in_channels = model.fc.in_features
-        model.fc = nn.Linear(in_channels, args.num_classes)
-    elif args.arch.name == "resnet101":
+        model.fc = nn.Linear(in_channels, cfg.num_classes)
+    elif cfg.arch.name == "resnet101":
         model = resnet101(pretrained=True)
         in_channels = model.fc.in_features
-        model.fc = nn.Linear(in_channels, args.num_classes)
-    elif "efficientnet" in args.arch.name:
-        model = EfficientNet.from_pretrained(args.arch.name)
+        model.fc = nn.Linear(in_channels, cfg.num_classes)
+    elif "efficientnet" in cfg.arch.name:
+        model = EfficientNet.from_pretrained(cfg.arch.name)
         in_channels = model._fc.in_features
-        model._fc = nn.Linear(in_channels, args.num_classes)
+        model._fc = nn.Linear(in_channels, cfg.num_classes)
     model.to(device)
 
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.AdamW(
         model.parameters(),
-        lr=args.arch.max_lr,
+        lr=cfg.arch.max_lr,
     )  # 最適化方法定義
 
     iteration = 0  # 反復回数保存用
-    # 評価だけやる
-    if args.evaluate:
-        weight_name = "{}/{}/{}_mobilenetv2_best.pth".format(
-            args.path2weight, args.exp_name
-        )
-        logger.info("use pretrained model : {}".format(weight_name))
-        param = torch.load(weight_name, map_location=lambda storage, loc: storage)
-        model.load_state_dict(param)
-        if multigpu:
-            model = nn.DataParallel(model)
-        model.to(device)  # gpu使うならcuda化
-        validate(args, model, device, val_loader, criterion, writer, iteration)
-        return
 
     model_without_dp = model
     if multigpu:
@@ -142,29 +129,29 @@ def main(args):
         optimizer,
         T_0=len(train_loader),
         T_mult=1,
-        eta_min=args.arch.min_lr,
+        eta_min=cfg.arch.min_lr,
         last_epoch=-1,
     )  # 学習率の軽減スケジュール
 
     best_acc = 0.0
     # 学習再開時の設定
-    if args.restart:
+    if cfg.restart:
         checkpoint = torch.load(
-            "{}/{}_checkpoint.pth".format(args.path2weight, args.exp_name),
+            "{}/{}_checkpoint.pth".format(cfg.path2weight, cfg.exp_name),
             map_location="cpu",
         )
         model_without_dp.load_state_dict(checkpoint["model"])
         optimizer.load_state_dict(checkpoint["optimizer"])
         scheduler.load_state_dict(checkpoint["scheduler"])
-        args.start_epoch = checkpoint["epoch"] + 1
+        cfg.start_epoch = checkpoint["epoch"] + 1
         best_acc = checkpoint["best_acc"]
-        iteration = args.epochs * len(train_loader)
+        iteration = cfg.epochs * len(train_loader)
 
     starttime = time.time()  # 実行時間計測(実時間)
     # 学習と評価
-    for epoch in range(args.start_epoch, args.epochs + 1):
+    for epoch in range(cfg.start_epoch, cfg.epochs + 1):
         train(
-            args,
+            cfg,
             model,
             device,
             train_loader,
@@ -174,11 +161,11 @@ def main(args):
             scheduler,
             epoch,
             iteration,
-            args.apex,
+            cfg.apex,
         )
         iteration += len(train_loader)  # 1epoch終わった時のiterationを足す
         acc = validate(
-            args, model, device, val_loader, criterion, mlflow_manager, iteration
+            cfg, model, device, val_loader, criterion, mlflow_manager, iteration
         )
         scheduler.step()  # 学習率のスケジューリング更新
         is_best = acc > best_acc
@@ -186,7 +173,7 @@ def main(args):
         if is_best:
             logger.info("Acc@1 best: {:6.2f}%".format(best_acc))
             weight_name = "{}/{}_mobilenetv2_best.pth".format(
-                args.path2weight, args.exp_name
+                cfg.ckpt_path, cfg.exp_name
             )
             torch.save(model_without_dp.cpu().state_dict(), weight_name)
             checkpoint = {
@@ -195,9 +182,9 @@ def main(args):
                 "scheduler": scheduler.state_dict(),
                 "epoch": epoch,
                 "best_acc": best_acc,
-                "args": args,
+                "cfg": cfg,
             }
-            ckp_path = Path(f"{args.path2weight}/{args.exp_name}_checkpoint.pth")
+            ckp_path = Path(f"{cfg.ckpt_path}/{cfg.exp_name}_checkpoint.pth")
             torch.save(checkpoint, str(ckp_path))
             mlflow_manager.log_artifact(ckp_path)
             model.to(device)

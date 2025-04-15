@@ -1,12 +1,11 @@
 exp_name: food-101
-path2db: !!python/object/apply:pathlib.PosixPath
+dataset_path: !!python/object/apply:pathlib.PosixPath
   - data/datasets/food-101
-path2weight: !!python/object/apply:pathlib.PosixPath
+ckpt_path: !!python/object/apply:pathlib.PosixPath
   - weight
 num_classes: 101
 start_epoch: 1
 epochs: 1
-evaluate: false
 restart: false
 workers: 16
 seed: 1

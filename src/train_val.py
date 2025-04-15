@@ -8,7 +8,7 @@ from utils import AverageMeter, ProgressMeter, accuracy
 
 
 def train(
-    args,
+    cfg,
     model,
     device,
     train_loader,
@@ -82,7 +82,7 @@ def train(
         end = time.time()  # 基準の時間更新
 
         # print_freqごとに進行具合とloss表示
-        if i % args.print_freq == 0:
+        if i % cfg.print_freq == 0:
             progress.display(i)
         mlflow_manager.log_metric("lr", optimizer.param_groups[0]["lr"], iteration)
         mlflow_manager.log_metric("loss.train", loss.item(), iteration)
@@ -93,7 +93,7 @@ def train(
         iteration += 1
 
 
-def validate(args, model, device, val_loader, criterion, mlflow_manager, iteration):
+def validate(cfg, model, device, val_loader, criterion, mlflow_manager, iteration):
     # ProgressMeter, AverageMeterの値初期化
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
@@ -137,7 +137,7 @@ def validate(args, model, device, val_loader, criterion, mlflow_manager, iterati
                 time.time() - end
             )  # 画像ロードからパラメータ更新にかかった時間記録
             end = time.time()  # 基準の時間更新
-            if i % args.print_freq == 0:
+            if i % cfg.print_freq == 0:
                 progress.display(i)
             mlflow_manager.log_metric("loss.val", loss.item(), iteration)
             mlflow_manager.log_metric("acc1.val", acc1[0], iteration)
