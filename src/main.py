@@ -20,7 +20,6 @@ from utils import get_worker_init, seed_everything
 
 
 def load_data(args):
-    cwd = hydra.utils.get_original_cwd()
     normalize = A.Normalize(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], max_pixel_value=255.0
     )
@@ -47,15 +46,13 @@ def load_data(args):
 
     # AnimeFaceの学習用データ設定
     train_dataset = Food101Dataset(
-        os.path.join(cwd, args.path2db),
+        os.path.join(args.path2db),
         "train",
         transform=train_transform,
     )
 
     # Food101の評価用データ設定
-    val_dataset = Food101Dataset(
-        os.path.join(cwd, args.path2db), "test", transform=val_transform
-    )
+    val_dataset = Food101Dataset(args.path2db, "test", transform=val_transform)
 
     train_loader = torch.utils.data.DataLoader(
         dataset=train_dataset,
@@ -82,9 +79,8 @@ def load_data(args):
 @hydra.main(config_path="./../config", config_name="config", version_base="1.3")
 def main(args):
     print(args)
-    cwd = hydra.utils.get_original_cwd()
     seed_everything(args.seed)  # 乱数テーブル固定
-    os.makedirs(os.path.join(cwd, args.path2weight), exist_ok=True)
+    os.makedirs(args.path2weight, exist_ok=True)
     mlflow_manager = MlflowExperimentManager(args.exp_name)
     mlflow_manager.log_param_from_omegaconf_dict(args)
 
@@ -122,7 +118,7 @@ def main(args):
     # 評価だけやる
     if args.evaluate:
         weight_name = "{}/{}/{}_mobilenetv2_best.pth".format(
-            cwd, args.path2weight, args.exp_name
+            args.path2weight, args.exp_name
         )
         print("use pretrained model : {}".format(weight_name))
         param = torch.load(weight_name, map_location=lambda storage, loc: storage)
@@ -150,7 +146,7 @@ def main(args):
     # 学習再開時の設定
     if args.restart:
         checkpoint = torch.load(
-            "{}/{}/{}_checkpoint.pth".format(cwd, args.path2weight, args.exp_name),
+            "{}/{}_checkpoint.pth".format(args.path2weight, args.exp_name),
             map_location="cpu",
         )
         model_without_dp.load_state_dict(checkpoint["model"])
@@ -185,8 +181,8 @@ def main(args):
         best_acc = max(acc, best_acc)
         if is_best:
             print("Acc@1 best: {:6.2f}%".format(best_acc))
-            weight_name = "{}/{}/{}_mobilenetv2_best.pth".format(
-                cwd, args.path2weight, args.exp_name
+            weight_name = "{}/{}_mobilenetv2_best.pth".format(
+                args.path2weight, args.exp_name
             )
             torch.save(model_without_dp.cpu().state_dict(), weight_name)
             checkpoint = {
@@ -197,7 +193,7 @@ def main(args):
                 "best_acc": best_acc,
                 "args": args,
             }
-            ckp_path = Path(f"{cwd}/{args.path2weight}/{args.exp_name}_checkpoint.pth")
+            ckp_path = Path(f"{args.path2weight}/{args.exp_name}_checkpoint.pth")
             torch.save(checkpoint, str(ckp_path))
             mlflow_manager.log_artifact(ckp_path)
             model.to(device)
