@@ -2,7 +2,6 @@
 import os
 import time
 from logging import getLogger
-from pathlib import Path
 
 import albumentations as A
 import hydra
@@ -17,7 +16,7 @@ from MlflowWriter import MlflowExperimentManager
 from mobilenet_v2 import mobilenet_v2
 from resnet import resnet50, resnet101
 from train_val import train, validate
-from utils import get_worker_init, seed_everything
+from utils import seed_everything, seed_worker
 
 logger = getLogger(__name__)
 
@@ -57,6 +56,9 @@ def load_data(cfg):
     # Food101の評価用データ設定
     val_dataset = Food101Dataset(cfg.dataset_root, "test", transform=val_transform)
 
+    g = torch.Generator()
+    g.manual_seed(cfg.seed)
+
     train_loader = torch.utils.data.DataLoader(
         dataset=train_dataset,
         batch_size=cfg.arch.batch_size,
@@ -64,7 +66,8 @@ def load_data(cfg):
         num_workers=cfg.workers,
         pin_memory=True,
         drop_last=True,
-        worker_init_fn=get_worker_init(cfg.seed),
+        worker_init_fn=seed_worker,
+        generator=g,
     )
 
     val_loader = torch.utils.data.DataLoader(
@@ -74,7 +77,8 @@ def load_data(cfg):
         num_workers=cfg.workers,
         pin_memory=True,
         drop_last=False,
-        worker_init_fn=get_worker_init(cfg.seed),
+        worker_init_fn=seed_worker,
+        generator=g,
     )
     return train_loader, val_loader
 
@@ -85,14 +89,13 @@ def main(cfg):
     seed_everything(cfg.seed)
 
     cfg.ckpt_root.mkdir(parents=True, exist_ok=True)
+    ckp_path = cfg.ckpt_root / f"{cfg.exp_name}_checkpoint.pth"
+    weight_path = cfg.ckpt_root / f"{cfg.exp_name}_{cfg.arch.name}_best.pth"
+
     mlflow_manager = MlflowExperimentManager(cfg.exp_name)
     mlflow_manager.log_param_from_omegaconf_dict(cfg)
 
-    # torch.backends.cudnn.benchmark = True  # 再現性を無くして高速化
-    device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    )  # cpuとgpu自動選択 (pytorch0.4.0以降の書き方)
-    multigpu = torch.cuda.device_count() > 1  # グラボ2つ以上ならmultigpuにする
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     train_loader, val_loader = load_data(cfg)
 
@@ -116,14 +119,9 @@ def main(cfg):
     optimizer = optim.AdamW(
         model.parameters(),
         lr=cfg.arch.max_lr,
-    )  # 最適化方法定義
+    )
 
     iteration = 0  # 反復回数保存用
-
-    model_without_dp = model
-    if multigpu:
-        model = nn.DataParallel(model)
-        model_without_dp = model.module
 
     scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
         optimizer,
@@ -134,18 +132,6 @@ def main(cfg):
     )  # 学習率の軽減スケジュール
 
     best_acc = 0.0
-    # 学習再開時の設定
-    if cfg.restart:
-        checkpoint = torch.load(
-            "{}/{}_checkpoint.pth".format(cfg.path2weight, cfg.exp_name),
-            map_location="cpu",
-        )
-        model_without_dp.load_state_dict(checkpoint["model"])
-        optimizer.load_state_dict(checkpoint["optimizer"])
-        scheduler.load_state_dict(checkpoint["scheduler"])
-        cfg.start_epoch = checkpoint["epoch"] + 1
-        best_acc = checkpoint["best_acc"]
-        iteration = cfg.epochs * len(train_loader)
 
     # 学習と評価
     for epoch in range(cfg.start_epoch, cfg.epochs + 1):
@@ -171,32 +157,22 @@ def main(cfg):
         best_acc = max(acc, best_acc)
         if is_best:
             logger.info("Acc@1 best: {:6.2f}%".format(best_acc))
-            weight_name = "{}/{}_mobilenetv2_best.pth".format(
-                cfg.ckpt_root, cfg.exp_name
-            )
-            torch.save(model_without_dp.cpu().state_dict(), weight_name)
+
+            torch.save(model.cpu().state_dict(), weight_path)
+            mlflow_manager.log_artifact(weight_path)
+
             checkpoint = {
-                "model": model_without_dp.cpu().state_dict(),
+                "model": model.cpu().state_dict(),
                 "optimizer": optimizer.state_dict(),
                 "scheduler": scheduler.state_dict(),
                 "epoch": epoch,
                 "best_acc": best_acc,
                 "cfg": cfg,
             }
-            ckp_path = Path(f"{cfg.ckpt_root}/{cfg.exp_name}_checkpoint.pth")
-            torch.save(checkpoint, str(ckp_path))
+            torch.save(checkpoint, ckp_path)
             mlflow_manager.log_artifact(ckp_path)
-            model.to(device)
 
-    endtime = time.time()
-    interval = endtime - starttime
-    logger.info(
-        "elapsed time = {0:d}h {1:d}m {2:d}s".format(
-            int(interval / 3600),
-            int((interval % 3600) / 60),
-            int((interval % 3600) % 60),
-        )
-    )
+            model.to(device)
 
 
 if __name__ == "__main__":
@@ -204,8 +180,7 @@ if __name__ == "__main__":
     main()
     end_time = time.perf_counter()
     interval = end_time - start_time
-    logger.info(
-        f"elapsed time: {interval / 3600:d}h "
-        f"{(interval % 3600) / 60:d}m "
-        f"{(interval % 3600) % 60:d}s"
-    )
+    hours = int(interval // 3600)
+    minutes = int((interval % 3600) // 60)
+    seconds = int((interval % 3600) % 60)
+    logger.info(f"elapsed time: {hours}h {minutes}m {seconds}s")
