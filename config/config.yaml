@@ -1,5 +1,5 @@
 exp_name: food-101
-path2db: ./../datasets/food-101
+path2db: data/datasets/food-101
 path2weight: weight
 num_classes: 101
 start_epoch: 1
