@@ -1,6 +1,0 @@
-name: mobilenet_v2
-image_size: 240
-crop_size: 240
-batch_size: 128
-min_lr: 0.0001
-max_lr: 0.001

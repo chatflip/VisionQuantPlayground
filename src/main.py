@@ -10,6 +10,8 @@ import torch.nn as nn
 import torch.optim as optim
 from albumentations.pytorch import ToTensorV2
 from efficientnet_pytorch import EfficientNet
+import timm
+
 
 from datasets import Food101Dataset
 from MlflowExperimentManager import MlflowExperimentManager
@@ -21,7 +23,7 @@ from train_val import train, validate
 logger = getLogger(__name__)
 
 
-def load_data(cfg):
+def load_data(cfg, image_height, image_width, mean, std):
     normalize = A.Normalize(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], max_pixel_value=255.0
     )
@@ -29,7 +31,7 @@ def load_data(cfg):
     train_transform = A.Compose(
         [
             A.RandomResizedCrop(
-                size=(cfg.arch.crop_size, cfg.arch.crop_size),
+                size=(image_height, image_width),
             ),
             A.HorizontalFlip(),
             normalize,
@@ -40,8 +42,8 @@ def load_data(cfg):
 
     val_transform = A.Compose(
         [
-            A.Resize(cfg.arch.image_size, cfg.arch.image_size),
-            A.CenterCrop(cfg.arch.crop_size, cfg.arch.crop_size),
+            A.Resize(image_height, image_width),
+            A.CenterCrop(image_height, image_width),
             normalize,
             ToTensorV2(),
         ]
@@ -98,23 +100,23 @@ def main(cfg):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    train_loader, val_loader = load_data(cfg)
-
-    if cfg.arch.name == "mobilenet_v2":
-        model = mobilenet_v2(pretrained=True, num_classes=cfg.num_classes)
-    elif cfg.arch.name == "resnet50":
-        model = resnet50(pretrained=True)
-        in_channels = model.fc.in_features
-        model.fc = nn.Linear(in_channels, cfg.num_classes)
-    elif cfg.arch.name == "resnet101":
-        model = resnet101(pretrained=True)
-        in_channels = model.fc.in_features
-        model.fc = nn.Linear(in_channels, cfg.num_classes)
-    elif "efficientnet" in cfg.arch.name:
-        model = EfficientNet.from_pretrained(cfg.arch.name)
-        in_channels = model._fc.in_features
-        model._fc = nn.Linear(in_channels, cfg.num_classes)
+    available_models = timm.list_models()
+    if cfg.arch.name not in available_models:
+        raise ValueError(f"Model {cfg.arch.name} not found in available models")
+    model = timm.create_model(
+        cfg.arch.name,
+        pretrained=True,
+        num_classes=cfg.num_classes,
+    )
+    _, image_height, image_width = model.default_cfg["input_size"]
+    mean = model.default_cfg["mean"]
+    std = model.default_cfg["std"]
+    
+    
+    
     model.to(device)
+
+    train_loader, val_loader = load_data(cfg, image_height, image_width, mean, std)
 
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.AdamW(

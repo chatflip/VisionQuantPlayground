@@ -1,6 +1,0 @@
-name: efficientnet-b4
-image_size: 380
-crop_size: 380
-batch_size: 4
-min_lr: 0.0001
-max_lr: 0.001

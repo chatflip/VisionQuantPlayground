@@ -1,6 +1,0 @@
-name: efficientnet-b3
-image_size: 300
-crop_size: 300
-batch_size: 4
-min_lr: 0.0001
-max_lr: 0.001
