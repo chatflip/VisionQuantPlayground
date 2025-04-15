@@ -8,3 +8,4 @@ alwaysApply: false
 - 全ての関数とメソッドに戻り値の型ヒントを付与
 - Google style形式のdocstringを採用
 - 適切なエラー処理とロギングを実装する
+- pathの操作はpathlibのPathを使用する
