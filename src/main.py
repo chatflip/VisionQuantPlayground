@@ -49,13 +49,13 @@ def load_data(cfg):
 
     # AnimeFaceの学習用データ設定
     train_dataset = Food101Dataset(
-        os.path.join(cfg.dataset_path),
+        os.path.join(cfg.dataset_root),
         "train",
         transform=train_transform,
     )
 
     # Food101の評価用データ設定
-    val_dataset = Food101Dataset(cfg.dataset_path, "test", transform=val_transform)
+    val_dataset = Food101Dataset(cfg.dataset_root, "test", transform=val_transform)
 
     train_loader = torch.utils.data.DataLoader(
         dataset=train_dataset,
@@ -84,7 +84,7 @@ def main(cfg):
     logger.info(cfg)
     seed_everything(cfg.seed)
 
-    cfg.ckpt_path.mkdir(parents=True, exist_ok=True)
+    cfg.ckpt_root.mkdir(parents=True, exist_ok=True)
     mlflow_manager = MlflowExperimentManager(cfg.exp_name)
     mlflow_manager.log_param_from_omegaconf_dict(cfg)
 
@@ -147,7 +147,6 @@ def main(cfg):
         best_acc = checkpoint["best_acc"]
         iteration = cfg.epochs * len(train_loader)
 
-    starttime = time.time()  # 実行時間計測(実時間)
     # 学習と評価
     for epoch in range(cfg.start_epoch, cfg.epochs + 1):
         train(
@@ -173,7 +172,7 @@ def main(cfg):
         if is_best:
             logger.info("Acc@1 best: {:6.2f}%".format(best_acc))
             weight_name = "{}/{}_mobilenetv2_best.pth".format(
-                cfg.ckpt_path, cfg.exp_name
+                cfg.ckpt_root, cfg.exp_name
             )
             torch.save(model_without_dp.cpu().state_dict(), weight_name)
             checkpoint = {
@@ -184,7 +183,7 @@ def main(cfg):
                 "best_acc": best_acc,
                 "cfg": cfg,
             }
-            ckp_path = Path(f"{cfg.ckpt_path}/{cfg.exp_name}_checkpoint.pth")
+            ckp_path = Path(f"{cfg.ckpt_root}/{cfg.exp_name}_checkpoint.pth")
             torch.save(checkpoint, str(ckp_path))
             mlflow_manager.log_artifact(ckp_path)
             model.to(device)
@@ -201,4 +200,12 @@ def main(cfg):
 
 
 if __name__ == "__main__":
+    start_time = time.perf_counter()
     main()
+    end_time = time.perf_counter()
+    interval = end_time - start_time
+    logger.info(
+        f"elapsed time: {interval / 3600:d}h "
+        f"{(interval % 3600) / 60:d}m "
+        f"{(interval % 3600) % 60:d}s"
+    )
