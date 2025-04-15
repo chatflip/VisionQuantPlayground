@@ -83,6 +83,7 @@ def load_data(args):
 def main(args):
     logger.info(args)
     seed_everything(args.seed)  # 乱数テーブル固定
+
     os.makedirs(args.path2weight, exist_ok=True)
     mlflow_manager = MlflowExperimentManager(args.exp_name)
     mlflow_manager.log_param_from_omegaconf_dict(args)
