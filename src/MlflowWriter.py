@@ -24,6 +24,7 @@ class MlflowExperimentManager:
                 artifact_location=Path.cwd().joinpath("mlruns").as_posix(),
             )
         mlflow.set_experiment(experiment_name)
+        mlflow.enable_system_metrics_logging()
 
     def log_param_from_omegaconf_dict(
         self, params: DictConfig, prefix: str = ""
