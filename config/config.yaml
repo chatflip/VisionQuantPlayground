@@ -10,8 +10,6 @@ restart: false
 workers: 16
 seed: 42
 print_freq: 100
-apex: false
-apex_opt_level: O1
 
 defaults:
   - _self_

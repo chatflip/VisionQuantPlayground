@@ -1,2 +1,2 @@
 #!/bin/bash
-python src/main.py -m apex=true arch=mobilenetv2
+python src/main.py -m arch=mobilenetv2

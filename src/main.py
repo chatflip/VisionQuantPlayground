@@ -143,7 +143,6 @@ def main(cfg):
             scheduler,
             epoch,
             iteration,
-            cfg.apex,
         )
         iteration += len(train_loader)  # 1epoch終わった時のiterationを足す
         acc = validate(

@@ -1,25 +1,43 @@
 # -*- coding: utf-8 -*-
 import time
+from typing import Any
 
 import torch
-from torch.amp import GradScaler, autocast
+import torch.nn as nn
+from torch.optim.lr_scheduler import LRScheduler
+from torch.optim.optimizer import Optimizer
+from torch.utils.data import DataLoader
 
+from MlflowExperimentManager import MlflowExperimentManager
 from utils import AverageMeter, ProgressMeter, accuracy
 
 
 def train(
-    cfg,
-    model,
-    device,
-    train_loader,
-    mlflow_manager,
-    criterion,
-    optimizer,
-    scheduler,
-    epoch,
-    iteration,
-    apex=False,
-):
+    cfg: Any,
+    model: nn.Module,
+    device: torch.device,
+    data_loader: DataLoader,
+    mlflow_manager: MlflowExperimentManager,
+    criterion: nn.Module,
+    optimizer: Optimizer,
+    scheduler: LRScheduler,
+    epoch: int,
+    iteration: int,
+) -> None:
+    """モデルの学習を行う。
+
+    Args:
+        cfg (Any): 設定
+        model (nn.Module): モデル
+        device (torch.device): デバイス
+        data_loader (DataLoader): データローダー
+        mlflow_manager (MlflowExperimentManager): mlflowのマネージャー
+        criterion (nn.Module): 損失関数
+        optimizer (Optimizer): オプティマイザ
+        scheduler (LRScheduler): 学習率スケジューラ
+        epoch (int): エポック数
+        iteration (int): 反復回数
+    """
     # ProgressMeter, AverageMeterの値初期化
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
@@ -27,7 +45,7 @@ def train(
     top1 = AverageMeter("Acc@1", ":6.2f")
     top5 = AverageMeter("Acc@5", ":6.2f")
     progress = ProgressMeter(
-        len(train_loader),
+        len(data_loader),
         [batch_time, data_time, losses, top1, top5],
         prefix="Epoch: [{}]".format(epoch),
     )
@@ -36,27 +54,17 @@ def train(
     # ex.)dropout,batchnormを有効
     model.train()
 
-    if apex:
-        scaler = GradScaler()
-
     end = time.time()  # 1回目の読み込み時間計測用
-    for i, (images, target) in enumerate(train_loader):
+    for i, (images, target) in enumerate(data_loader):
         data_time.update(time.time() - end)  # 画像のロード時間記録
 
         images = images.to(device, non_blocking=True)  # gpu使うなら画像をgpuに転送
         target = target.to(device, non_blocking=True)  # gpu使うならラベルをgpuに転送
 
-        if apex:
-            with autocast("cuda"):
-                output = model(images)  # sofmaxm前まで出力(forward)
-                loss = criterion(
-                    output, target
-                )  # ネットワークの出力をsoftmax + ラベルとのloss計算
-        else:
-            output = model(images)  # sofmaxm前まで出力(forward)
-            loss = criterion(
-                output, target
-            )  # ネットワークの出力をsoftmax + ラベルとのloss計算
+        output = model(images)  # sofmaxm前まで出力(forward)
+        loss = criterion(
+            output, target
+        )  # ネットワークの出力をsoftmax + ラベルとのloss計算
 
         # losss, accuracyを計算して更新
         acc1, acc5 = accuracy(
@@ -68,13 +76,8 @@ def train(
 
         optimizer.zero_grad()  # 勾配初期化
 
-        if apex:
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)  # パラメータ更新
-            scaler.update()
-        else:
-            loss.backward()
-            optimizer.step()  # パラメータ更新
+        loss.backward()
+        optimizer.step()  # パラメータ更新
         scheduler.step()
         batch_time.update(
             time.time() - end
@@ -93,7 +96,29 @@ def train(
         iteration += 1
 
 
-def validate(cfg, model, device, val_loader, criterion, mlflow_manager, iteration):
+def validate(
+    cfg: Any,
+    model: nn.Module,
+    device: torch.device,
+    data_loader: DataLoader,
+    criterion: nn.Module,
+    mlflow_manager: MlflowExperimentManager,
+    iteration: int,
+) -> float:
+    """モデルの評価を行う。
+
+    Args:
+        cfg (Any): 設定
+        model (nn.Module): モデル
+        device (torch.device): デバイス
+        data_loader (DataLoader): データローダー
+        criterion (nn.Module): 損失関数
+        mlflow_manager (MlflowExperimentManager): mlflowのマネージャー
+        iteration (int): 反復回数
+
+    Returns:
+        float: 精度
+    """
     # ProgressMeter, AverageMeterの値初期化
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
@@ -101,7 +126,7 @@ def validate(cfg, model, device, val_loader, criterion, mlflow_manager, iteratio
     top1 = AverageMeter("Acc@1", ":6.2f")
     top5 = AverageMeter("Acc@5", ":6.2f")
     progress = ProgressMeter(
-        len(val_loader),
+        len(data_loader),
         [batch_time, data_time, losses, top1, top5],
         prefix="Validate: ",
     )
@@ -113,7 +138,7 @@ def validate(cfg, model, device, val_loader, criterion, mlflow_manager, iteratio
     # 勾配計算しない(計算量低減)
     with torch.no_grad():
         end = time.time()  # 基準の時間更新
-        for i, (images, target) in enumerate(val_loader):
+        for i, (images, target) in enumerate(data_loader):
             data_time.update(time.time() - end)  # 画像のロード時間記録
 
             images = images.to(device, non_blocking=True)  # gpu使うなら画像をgpuに転送
@@ -147,4 +172,4 @@ def validate(cfg, model, device, val_loader, criterion, mlflow_manager, iteratio
 
     # 精度等格納
     progress.display(i + 1)
-    return top1.avg.item()
+    return top1.avg
