@@ -34,7 +34,8 @@ def load_data(cfg):
             A.HorizontalFlip(),
             normalize,
             ToTensorV2(),
-        ]
+        ],
+        seed=cfg.seed,
     )
 
     val_transform = A.Compose(

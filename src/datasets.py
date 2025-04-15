@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+from logging import getLogger
 
 import cv2
 import numpy as np
 from torch.utils.data import Dataset
+
+logger = getLogger(__name__)
 
 
 class Food101Dataset(Dataset):
