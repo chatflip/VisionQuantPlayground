@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import time
+from logging import getLogger
 from pathlib import Path
 
 import albumentations as A
@@ -17,6 +18,8 @@ from mobilenet_v2 import mobilenet_v2
 from resnet import resnet50, resnet101
 from train_val import train, validate
 from utils import get_worker_init, seed_everything
+
+logger = getLogger(__name__)
 
 
 def load_data(args):
@@ -78,7 +81,7 @@ def load_data(args):
 
 @hydra.main(config_path="./../config", config_name="config", version_base="1.3")
 def main(args):
-    print(args)
+    logger.info(args)
     seed_everything(args.seed)  # 乱数テーブル固定
     os.makedirs(args.path2weight, exist_ok=True)
     mlflow_manager = MlflowExperimentManager(args.exp_name)
@@ -120,7 +123,7 @@ def main(args):
         weight_name = "{}/{}/{}_mobilenetv2_best.pth".format(
             args.path2weight, args.exp_name
         )
-        print("use pretrained model : {}".format(weight_name))
+        logger.info("use pretrained model : {}".format(weight_name))
         param = torch.load(weight_name, map_location=lambda storage, loc: storage)
         model.load_state_dict(param)
         if multigpu:
@@ -180,7 +183,7 @@ def main(args):
         is_best = acc > best_acc
         best_acc = max(acc, best_acc)
         if is_best:
-            print("Acc@1 best: {:6.2f}%".format(best_acc))
+            logger.info("Acc@1 best: {:6.2f}%".format(best_acc))
             weight_name = "{}/{}_mobilenetv2_best.pth".format(
                 args.path2weight, args.exp_name
             )
@@ -200,7 +203,7 @@ def main(args):
 
     endtime = time.time()
     interval = endtime - starttime
-    print(
+    logger.info(
         "elapsed time = {0:d}h {1:d}m {2:d}s".format(
             int(interval / 3600),
             int((interval % 3600) / 60),

@@ -2,7 +2,10 @@ import argparse
 import sys
 import tarfile
 import urllib.request
+from logging import getLogger
 from pathlib import Path
+
+logger = getLogger(__name__)
 
 
 def progress(block_count: int, block_size: int, total_size: int) -> None:
@@ -33,17 +36,16 @@ def download_file(baseurl: str, filename: str, working_dir: Path) -> None:
     """
     fullpath = working_dir / filename
     target_url = f"{baseurl.rstrip('/')}/{filename}"
-    print(f"Downloading: {target_url}")
+    logger.info(f"Downloading: {target_url}")
     try:
         urllib.request.urlretrieve(
             url=target_url, filename=str(fullpath), reporthook=progress
         )
-        print("")
     except urllib.error.HTTPError as err:
-        print(f"HTTPエラー: {err.code} - {err.reason}")
+        logger.error(f"HTTPエラー: {err.code} - {err.reason}")
         raise
     except OSError as err:
-        print(f"OSエラー: {err.strerror}")
+        logger.error(f"OSエラー: {err.strerror}")
         raise
 
 
@@ -62,7 +64,7 @@ def decompress_file(working_dir: Path, filename: str) -> None:
         with tarfile.open(working_dir / filename, "r:gz") as tr:
             tr.extractall(path=working_dir)
     except (tarfile.TarError, OSError) as err:
-        print(f"解凍エラー: {str(err)}")
+        logger.error(f"解凍エラー: {str(err)}")
         raise
 
 

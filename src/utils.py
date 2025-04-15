@@ -4,10 +4,13 @@ import os
 import random
 import time
 from collections import defaultdict, deque
+from logging import getLogger
 
 import numpy as np
 import torch
 import torch.distributed as dist
+
+logger = getLogger(__name__)
 
 
 class SmoothedValue(object):
@@ -146,7 +149,7 @@ class MetricLogger(object):
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
                 if torch.cuda.is_available():
-                    print(
+                    logger.info(
                         log_msg.format(
                             i,
                             len(iterable),
@@ -157,7 +160,7 @@ class MetricLogger(object):
                         )
                     )
                 else:
-                    print(
+                    logger.info(
                         log_msg.format(
                             i,
                             len(iterable),
@@ -171,7 +174,7 @@ class MetricLogger(object):
             end = time.time()
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        print("{} Total time: {}".format(header, total_time_str))
+        logger.info("{} Total time: {}".format(header, total_time_str))
 
 
 # ログ記録用クラス
@@ -209,7 +212,7 @@ class ProgressMeter(object):
     def display(self, batch):
         entries = [self.prefix + self.batch_fmtstr.format(batch)]
         entries += [str(meter) for meter in self.meters]
-        print("\t".join(entries))
+        logger.info("\t".join(entries))
 
     def _get_batch_fmtstr(self, num_batches):
         num_digits = len(str(num_batches // 1))
@@ -303,14 +306,14 @@ def init_distributed_mode(args):
     elif hasattr(args, "rank"):
         pass
     else:
-        print("Not using distributed mode")
+        logger.warning("Not using distributed mode")
         args.distributed = False
         return
 
     args.distributed = True
 
     torch.cuda.set_device(args.gpu)
-    print(
+    logger.info(
         "| distributed init (rank {}): {}".format(args.rank, args.dist_url), flush=True
     )
     torch.distributed.init_process_group(
