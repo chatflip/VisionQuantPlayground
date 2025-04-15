@@ -20,9 +20,7 @@ logger = getLogger(__name__)
 
 
 def load_data(cfg, image_height, image_width, mean, std):
-    normalize = A.Normalize(
-        mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], max_pixel_value=255.0
-    )
+    normalize = A.Normalize(mean=mean, std=std, max_pixel_value=255.0)
     # 画像開いたところからtensorでNNに使えるようにするまでの変形
     train_transform = A.Compose(
         [
