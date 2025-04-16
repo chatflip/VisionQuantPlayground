@@ -2,13 +2,13 @@ import time
 from logging import getLogger
 
 import hydra
-import timm
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from omegaconf import DictConfig
 
 from data.dataloader import get_train_dataloader, get_val_dataloader
+from model.timm_model_builder import create_model
 from monitoring.MlflowExperimentManager import MlflowExperimentManager
 from training.trainer import train, validate
 from utils.reproducibility import seed_everything
@@ -38,14 +38,8 @@ def main(cfg: DictConfig) -> None:
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    available_models = timm.list_models()
-    if cfg.arch.name not in available_models:
-        raise ValueError(f"Model {cfg.arch.name} not found in available models")
-    model = timm.create_model(
-        cfg.arch.name,
-        pretrained=True,
-        num_classes=cfg.num_classes,
-    )
+    model = create_model(cfg.arch.timm_name, cfg.num_classes)
+
     _, image_height, image_width = model.default_cfg["input_size"]
     mean = model.default_cfg["mean"]
     std = model.default_cfg["std"]
