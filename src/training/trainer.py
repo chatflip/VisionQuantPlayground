@@ -54,9 +54,9 @@ def train(
     # ex.)dropout,batchnormを有効
     model.train()
 
-    end = time.time()  # 1回目の読み込み時間計測用
+    end = time.perf_counter()
     for i, (images, target) in enumerate(data_loader):
-        data_time.update(time.time() - end)  # 画像のロード時間記録
+        data_time.update(time.perf_counter() - end)  # 画像のロード時間記録
 
         images = images.to(device, non_blocking=True)  # gpu使うなら画像をgpuに転送
         target = target.to(device, non_blocking=True)  # gpu使うならラベルをgpuに転送
@@ -80,9 +80,9 @@ def train(
         optimizer.step()  # パラメータ更新
         scheduler.step()
         batch_time.update(
-            time.time() - end
+            time.perf_counter() - end
         )  # 画像ロードからパラメータ更新にかかった時間記録
-        end = time.time()  # 基準の時間更新
+        end = time.perf_counter()  # 基準の時間更新
 
         # print_freqごとに進行具合とloss表示
         if i % cfg.print_freq == 0:
@@ -137,9 +137,9 @@ def validate(
 
     # 勾配計算しない(計算量低減)
     with torch.no_grad():
-        end = time.time()  # 基準の時間更新
+        end = time.perf_counter()  # 基準の時間更新
         for i, (images, target) in enumerate(data_loader):
-            data_time.update(time.time() - end)  # 画像のロード時間記録
+            data_time.update(time.perf_counter() - end)  # 画像のロード時間記録
 
             images = images.to(device, non_blocking=True)  # gpu使うなら画像をgpuに転送
             target = target.to(
@@ -159,9 +159,9 @@ def validate(
             top5.update(acc5, images.size(0))
 
             batch_time.update(
-                time.time() - end
+                time.perf_counter() - end
             )  # 画像ロードからパラメータ更新にかかった時間記録
-            end = time.time()  # 基準の時間更新
+            end = time.perf_counter()  # 基準の時間更新
             if i % cfg.print_freq == 0:
                 progress.display(i)
             mlflow_manager.log_metric("loss.val", loss.item(), iteration)
