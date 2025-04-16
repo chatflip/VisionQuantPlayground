@@ -113,8 +113,9 @@ def main(cfg: DictConfig) -> None:
     seed_everything(cfg.seed)
 
     cfg.ckpt_root.mkdir(parents=True, exist_ok=True)
-    ckp_path = cfg.ckpt_root / f"{cfg.exp_name}_checkpoint.pth"
+    ckp_path = cfg.ckpt_root / f"{cfg.exp_name}_{cfg.arch.name}_checkpoint.pth"
     weight_path = cfg.ckpt_root / f"{cfg.exp_name}_{cfg.arch.name}_best.pth"
+    model_path = cfg.ckpt_root / f"{cfg.exp_name}_{cfg.arch.name}.pt"
 
     mlflow_manager = MlflowExperimentManager(cfg.exp_name)
     mlflow_manager.log_param_from_omegaconf_dict(cfg)
@@ -192,6 +193,9 @@ def main(cfg: DictConfig) -> None:
             }
             torch.save(checkpoint, ckp_path)
             mlflow_manager.log_artifact(ckp_path)
+
+            torch.save(model.cpu(), model_path)
+            mlflow_manager.log_artifact(model_path)
 
             model.to(device)
 
