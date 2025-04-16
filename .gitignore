@@ -134,7 +134,7 @@ dmypy.json
 # Ruff
 .ruff_cache/
 
-data
-weight
-mlruns
-multirun
+data/*
+weight/*
+mlruns/*
+multirun/*
