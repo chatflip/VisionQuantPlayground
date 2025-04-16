@@ -87,12 +87,12 @@ def train(
         # print_freqごとに進行具合とloss表示
         if i % cfg.print_freq == 0:
             progress.display(i)
-        mlflow_manager.log_metric("lr", optimizer.param_groups[0]["lr"], iteration)
-        mlflow_manager.log_metric("loss.train", loss.item(), iteration)
-        mlflow_manager.log_metric("acc1.train", acc1, iteration)
-        mlflow_manager.log_metric("acc5.train", acc5, iteration)
-        mlflow_manager.log_metric("top1.train", top1.avg, iteration)
-        mlflow_manager.log_metric("top5.train", top5.avg, iteration)
+            mlflow_manager.log_metric("lr", optimizer.param_groups[0]["lr"], iteration)
+            mlflow_manager.log_metric("loss.train", loss.item(), iteration)
+            mlflow_manager.log_metric("acc1.train", acc1, iteration)
+            mlflow_manager.log_metric("acc5.train", acc5, iteration)
+            mlflow_manager.log_metric("top1.train", top1.val, iteration)
+            mlflow_manager.log_metric("top5.train", top5.val, iteration)
         iteration += 1
 
 
@@ -136,7 +136,7 @@ def validate(
     model.eval()
 
     # 勾配計算しない(計算量低減)
-    with torch.no_grad():
+    with torch.inference_mode():
         end = time.perf_counter()  # 基準の時間更新
         for i, (images, target) in enumerate(data_loader):
             data_time.update(time.perf_counter() - end)  # 画像のロード時間記録
@@ -164,11 +164,9 @@ def validate(
             end = time.perf_counter()  # 基準の時間更新
             if i % cfg.print_freq == 0:
                 progress.display(i)
-            mlflow_manager.log_metric("loss.val", loss.item(), iteration)
-            mlflow_manager.log_metric("acc1.val", acc1, iteration)
-            mlflow_manager.log_metric("acc5.val", acc5, iteration)
-            mlflow_manager.log_metric("top1.val", top1.avg, iteration)
-            mlflow_manager.log_metric("top5.val", top5.avg, iteration)
+        mlflow_manager.log_metric("loss.val", losses.avg, iteration)
+        mlflow_manager.log_metric("top1.val", top1.avg, iteration)
+        mlflow_manager.log_metric("top5.val", top5.avg, iteration)
 
     # 精度等格納
     progress.display(i + 1)

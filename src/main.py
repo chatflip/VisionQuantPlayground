@@ -44,8 +44,6 @@ def main(cfg: DictConfig) -> None:
     mean = model.default_cfg["mean"]
     std = model.default_cfg["std"]
 
-    model.to(device)
-
     train_loader = get_train_dataloader(cfg, image_height, image_width, mean, std)
     val_loader = get_val_dataloader(cfg, image_height, image_width, mean, std)
 
@@ -66,7 +64,7 @@ def main(cfg: DictConfig) -> None:
     )  # 学習率の軽減スケジュール
 
     best_acc = 0.0
-
+    model.to(device)
     # 学習と評価
     for epoch in range(cfg.start_epoch, cfg.epochs + 1):
         train(
