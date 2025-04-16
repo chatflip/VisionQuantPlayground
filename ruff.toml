@@ -25,6 +25,7 @@ exclude = [
     "dist",
     "node_modules",
     "venv",
+    "*/**/__init__.py",
 ]
 
 [lint]
@@ -33,13 +34,16 @@ exclude = [
 # McCabe complexity (`C901`) by default.
 select = [
     "C", # flake8-comprehensions
+    "D", # pydocstyle
     "E", # pycodestyle error
     "F", # Pyflakes
     "I", # isort
     "W" # pycodestyle warning
-
 ]
-ignore = []
+ignore = [
+    "D100", # Missing docstring in public package
+    "D415" # First line should end with a period, question mark, or exclamation point
+]
 
 extend-select = []
 

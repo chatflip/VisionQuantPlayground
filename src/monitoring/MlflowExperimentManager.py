@@ -26,8 +26,9 @@ class MlflowExperimentManager:
     def log_param_from_omegaconf_dict(
         self, params: DictConfig, prefix: str = ""
     ) -> None:
-        """OmegaConfの設定をMLflowにログとして記録する
-        DictConfigの場合は.をつけて構造を保持して記録する
+        """OmegaConfの設定をMLflowにログとして記録する。
+
+        DictConfigの場合は.をつけて構造を保持して記録する。
 
         Args:
             params(DictConfig): OmegaConfの設定

@@ -16,6 +16,12 @@ class AverageMeter(object):
     """
 
     def __init__(self, name: str, fmt: str = ":f") -> None:
+        """平均値と現在値を計算して保持するクラスを初期化する。
+
+        Args:
+            name (str): メーターの名前
+            fmt (str, optional): 表示フォーマット. Defaults to ":f".
+        """
         self.name = name
         self.fmt = fmt
         self.reset()
@@ -61,6 +67,13 @@ class ProgressMeter(object):
     def __init__(
         self, num_batches: int, meters: list[AverageMeter], prefix: str = ""
     ) -> None:
+        """進捗メーターを初期化する。
+
+        Args:
+            num_batches (int): バッチの総数
+            meters (list[AverageMeter]): 表示するメーターのリスト
+            prefix (str, optional): 表示時のプレフィックス. Defaults to "".
+        """
         self.batch_fmtstr = self._get_batch_fmtstr(num_batches)
         self.meters = meters
         self.prefix = prefix

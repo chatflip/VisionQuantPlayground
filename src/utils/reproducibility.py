@@ -37,7 +37,7 @@ def seed_everything(seed: int = 1234) -> None:
 
 
 def seed_worker(worker_id: int) -> None:
-    """DataLoaderのワーカープロセスのシードを設定する
+    """DataLoaderのワーカープロセスのシードを設定する。
 
     Args:
         worker_id (int): ワーカープロセスのID

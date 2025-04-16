@@ -1,102 +1,19 @@
-import os
 import time
 from logging import getLogger
 
-import albumentations as A
 import hydra
 import timm
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from albumentations.pytorch import ToTensorV2
 from omegaconf import DictConfig
-from torch.utils.data import DataLoader
 
-from data.datasets import Food101Dataset
+from data.dataloader import get_train_dataloader, get_val_dataloader
 from monitoring.MlflowExperimentManager import MlflowExperimentManager
 from training.trainer import train, validate
-from utils.reproducibility import seed_everything, seed_worker
+from utils.reproducibility import seed_everything
 
 logger = getLogger(__name__)
-
-
-def load_data(
-    cfg: DictConfig,
-    image_height: int,
-    image_width: int,
-    mean: list[float],
-    std: list[float],
-) -> tuple[DataLoader, DataLoader]:
-    """データローダーを初期化する
-
-    Args:
-        cfg: DictConfig - 設定パラメータ
-        image_height: int - 画像の高さ
-        image_width: int - 画像の幅
-        mean: list[float] - 正規化のための平均値
-        std: list[float] - 正規化のための標準偏差
-
-    Returns:
-        tuple[DataLoader, DataLoader] - 訓練用と検証用のデータローダー
-    """
-    normalize = A.Normalize(mean=mean, std=std, max_pixel_value=255.0)
-    # 画像開いたところからtensorでNNに使えるようにするまでの変形
-    train_transform = A.Compose(
-        [
-            A.RandomResizedCrop(
-                size=(image_height, image_width),
-            ),
-            A.HorizontalFlip(),
-            normalize,
-            ToTensorV2(),
-        ],
-        seed=cfg.seed,
-    )
-
-    val_transform = A.Compose(
-        [
-            A.Resize(image_height, image_width),
-            A.CenterCrop(image_height, image_width),
-            normalize,
-            ToTensorV2(),
-        ]
-    )
-
-    # AnimeFaceの学習用データ設定
-    train_dataset = Food101Dataset(
-        os.path.join(cfg.dataset_root),
-        "train",
-        transform=train_transform,
-    )
-
-    # Food101の評価用データ設定
-    val_dataset = Food101Dataset(cfg.dataset_root, "test", transform=val_transform)
-
-    g = torch.Generator()
-    g.manual_seed(cfg.seed)
-
-    train_loader = torch.utils.data.DataLoader(
-        dataset=train_dataset,
-        batch_size=cfg.arch.batch_size,
-        shuffle=True,
-        num_workers=cfg.workers,
-        pin_memory=True,
-        drop_last=True,
-        worker_init_fn=seed_worker,
-        generator=g,
-    )
-
-    val_loader = torch.utils.data.DataLoader(
-        dataset=val_dataset,
-        batch_size=cfg.arch.batch_size,
-        shuffle=False,
-        num_workers=cfg.workers,
-        pin_memory=True,
-        drop_last=False,
-        worker_init_fn=seed_worker,
-        generator=g,
-    )
-    return train_loader, val_loader
 
 
 @hydra.main(config_path="./../config", config_name="config", version_base="1.3")
@@ -135,7 +52,8 @@ def main(cfg: DictConfig) -> None:
 
     model.to(device)
 
-    train_loader, val_loader = load_data(cfg, image_height, image_width, mean, std)
+    train_loader = get_train_dataloader(cfg, image_height, image_width, mean, std)
+    val_loader = get_val_dataloader(cfg, image_height, image_width, mean, std)
 
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.AdamW(
