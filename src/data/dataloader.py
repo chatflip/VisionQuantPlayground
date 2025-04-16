@@ -16,6 +16,18 @@ def get_train_dataloader(
     mean: list[float],
     std: list[float],
 ) -> DataLoader:
+    """訓練用のデータローダーを生成する。
+
+    Args:
+        cfg (Any): 設定パラメータ
+        image_height (int): 画像の高さ
+        image_width (int): 画像の幅
+        mean (list[float]): 正規化のための平均値
+        std (list[float]): 正規化のための標準偏差
+
+    Returns:
+        DataLoader: 訓練データのデータローダー
+    """
     transform = get_train_transforms(image_height, image_width, mean, std, cfg.seed)
     dataset = Food101Dataset(
         os.path.join(cfg.dataset_root),
@@ -46,6 +58,18 @@ def get_val_dataloader(
     mean: list[float],
     std: list[float],
 ) -> DataLoader:
+    """検証用のデータローダーを生成する。
+
+    Args:
+        cfg (Any): 設定パラメータ
+        image_height (int): 画像の高さ
+        image_width (int): 画像の幅
+        mean (list[float]): 正規化のための平均値
+        std (list[float]): 正規化のための標準偏差
+
+    Returns:
+        DataLoader: 検証データのデータローダー
+    """
     transform = get_val_transforms(image_height, image_width, mean, std)
     dataset = Food101Dataset(cfg.dataset_root, "test", transform=transform)
     g = torch.Generator()
