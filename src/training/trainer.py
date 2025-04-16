@@ -3,6 +3,7 @@ from typing import Any
 
 import torch
 import torch.nn as nn
+from torch.amp import GradScaler, autocast  # type: ignore[attr-defined]
 from torch.optim.lr_scheduler import LRScheduler
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
@@ -50,6 +51,7 @@ def train(
         prefix="Epoch: [{}]".format(epoch),
     )
 
+    scaler = GradScaler("cuda")
     # ネットワークを学習用に設定
     # ex.)dropout,batchnormを有効
     model.train()
@@ -61,10 +63,11 @@ def train(
         images = images.to(device, non_blocking=True)  # gpu使うなら画像をgpuに転送
         target = target.to(device, non_blocking=True)  # gpu使うならラベルをgpuに転送
 
-        output = model(images)  # sofmaxm前まで出力(forward)
-        loss = criterion(
-            output, target
-        )  # ネットワークの出力をsoftmax + ラベルとのloss計算
+        with autocast(device_type="cuda", dtype=torch.float16):
+            output = model(images)  # sofmaxm前まで出力(forward)
+            loss = criterion(
+                output, target
+            )  # ネットワークの出力をsoftmax + ラベルとのloss計算
 
         # losss, accuracyを計算して更新
         acc1, acc5 = accuracy(
@@ -74,11 +77,12 @@ def train(
         top1.update(acc1, images.size(0))
         top5.update(acc5, images.size(0))
 
-        optimizer.zero_grad()  # 勾配初期化
-
-        loss.backward()
-        optimizer.step()  # パラメータ更新
+        optimizer.zero_grad(set_to_none=True)  # 勾配初期化
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
         scheduler.step()
+
         batch_time.update(
             time.perf_counter() - end
         )  # 画像ロードからパラメータ更新にかかった時間記録

@@ -12,6 +12,7 @@ from model.timm_model_builder import create_model
 from monitoring.MlflowExperimentManager import MlflowExperimentManager
 from training.trainer import train, validate
 from utils.reproducibility import seed_everything
+from utils.torch_compile import get_device_compute_capability
 
 logger = getLogger(__name__)
 
@@ -39,6 +40,15 @@ def main(cfg: DictConfig) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = create_model(cfg.arch.timm_name, cfg.num_classes)
+    model.to(device)
+
+    cc = get_device_compute_capability()
+    if cc is None:
+        pass
+    elif cc >= 8.0:
+        model = torch.compile(model)
+    else:
+        model = torch.compile(model, backend="aot_eager")
 
     _, image_height, image_width = model.default_cfg["input_size"]
     mean = model.default_cfg["mean"]
@@ -64,7 +74,6 @@ def main(cfg: DictConfig) -> None:
     )  # 学習率の軽減スケジュール
 
     best_acc = 0.0
-    model.to(device)
     # 学習と評価
     for epoch in range(cfg.start_epoch, cfg.epochs + 1):
         train(
@@ -89,11 +98,11 @@ def main(cfg: DictConfig) -> None:
         if is_best:
             logger.info("Acc@1 best: {:6.2f}%".format(best_acc))
 
-            torch.save(model.cpu().state_dict(), weight_path)
+            torch.save(model._orig_mod.cpu().state_dict(), weight_path)
             mlflow_manager.log_artifact(weight_path)
 
             checkpoint = {
-                "model": model.cpu().state_dict(),
+                "model": model._orig_mod.cpu().state_dict(),
                 "optimizer": optimizer.state_dict(),
                 "scheduler": scheduler.state_dict(),  # type: ignore[no-untyped-call]
                 "epoch": epoch,
@@ -103,7 +112,7 @@ def main(cfg: DictConfig) -> None:
             torch.save(checkpoint, ckp_path)
             mlflow_manager.log_artifact(ckp_path)
 
-            torch.save(model.cpu(), model_path)
+            torch.save(model._orig_mod.cpu(), model_path)
             mlflow_manager.log_artifact(model_path)
 
             model.to(device)

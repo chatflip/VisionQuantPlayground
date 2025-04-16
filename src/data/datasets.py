@@ -54,15 +54,16 @@ class Food101Dataset(Dataset):
             self.image_paths.extend(fullpaths)
             self.image_labels.extend([class_index] * num_image)
 
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, int]:
+    def __getitem__(self, index: int) -> tuple[torch.FloatTensor, int]:
         """指定されたインデックスの画像とラベルを取得する。
 
         Args:
             index (int): 取得する画像のインデックス
 
         Returns:
-            tuple[torch.Tensor, int]: 変換処理が適用された画像とそのラベルのタプル。
-                                    第1要素は画像データ、第2要素はラベルのインデックス。
+            tuple[torch.FloatTensor, int]: 変換処理が適用された画像とそのラベルのタプル
+                第1要素は画像データ（shape: [C, H, W]）、
+                第2要素はラベルのインデックス。
         """
         image_path = self.image_paths[index]
         image = cv2.imread(image_path)

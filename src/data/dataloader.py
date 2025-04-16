@@ -38,7 +38,7 @@ def get_train_dataloader(
     g = torch.Generator()
     g.manual_seed(cfg.seed)
 
-    data_loader = torch.utils.data.DataLoader(
+    data_loader = DataLoader(
         dataset=dataset,
         batch_size=cfg.arch.batch_size,
         shuffle=True,
@@ -74,7 +74,7 @@ def get_val_dataloader(
     dataset = Food101Dataset(cfg.dataset_root, "test", transform=transform)
     g = torch.Generator()
     g.manual_seed(cfg.seed)
-    data_loader = torch.utils.data.DataLoader(
+    data_loader = DataLoader(
         dataset=dataset,
         batch_size=cfg.arch.batch_size,
         shuffle=False,
