@@ -1,5 +1,5 @@
 name: mobilenetv2
 timm_name: mobilenetv2_100
 batch_size: 128
-min_lr: 0.0001
-max_lr: 0.001
+min_lr: 0.00001
+max_lr: 0.0001
