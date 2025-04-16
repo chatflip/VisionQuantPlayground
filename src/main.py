@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import time
 from logging import getLogger
@@ -13,10 +12,10 @@ from albumentations.pytorch import ToTensorV2
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 
-from datasets import Food101Dataset
-from MlflowExperimentManager import MlflowExperimentManager
-from reproducibility import seed_everything, seed_worker
-from train_val import train, validate
+from data.datasets import Food101Dataset
+from monitoring.MlflowExperimentManager import MlflowExperimentManager
+from training.trainer import train, validate
+from utils.reproducibility import seed_everything, seed_worker
 
 logger = getLogger(__name__)
 

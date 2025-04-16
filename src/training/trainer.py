@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import time
 from typing import Any
 
@@ -8,8 +7,9 @@ from torch.optim.lr_scheduler import LRScheduler
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
-from MlflowExperimentManager import MlflowExperimentManager
-from utils import AverageMeter, ProgressMeter, accuracy
+from monitoring.metrics_tracker import AverageMeter, ProgressMeter
+from monitoring.MlflowExperimentManager import MlflowExperimentManager
+from training.metrics import accuracy
 
 
 def train(

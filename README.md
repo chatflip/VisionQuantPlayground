@@ -17,7 +17,7 @@ pre-commit install
 ### Run
 
 ```bash
-python src/download.py
+python src/data/download_food101.py
 ```
 
 ### Lint & Format
