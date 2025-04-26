@@ -1,5 +1,0 @@
-name: efficientnet_b0
-timm_name: efficientnet_b0
-batch_size: 256
-min_lr: 0.0001
-max_lr: 0.001

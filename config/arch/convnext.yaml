@@ -1,0 +1,5 @@
+name: convnext
+timm_name: convnext_small
+batch_size: 128
+min_lr: 0.000001
+max_lr: 0.00001

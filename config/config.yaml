@@ -6,10 +6,9 @@ ckpt_root: !!python/object/apply:pathlib.PosixPath
 num_classes: 101
 start_epoch: 1
 epochs: 50
-restart: false
 seed: 42
 print_freq: 100
 
 defaults:
   - _self_
-  - arch: mobilenet_v2
+  - arch: mobilenetv2

@@ -1,0 +1,5 @@
+name: dinov2
+timm_name: vit_small_patch14_dinov2
+batch_size: 64
+min_lr: 0.000001
+max_lr: 0.00001
