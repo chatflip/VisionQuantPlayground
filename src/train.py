@@ -46,6 +46,9 @@ def main(cfg: DictConfig) -> None:
     if cc is None:
         pass
     elif cc >= 8.0:
+        torch.set_float32_matmul_precision('high')
+        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cuda.matmul.allow_tf32 = True
         model = torch.compile(model)
     else:
         model = torch.compile(model, backend="aot_eager")
