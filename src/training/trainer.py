@@ -81,7 +81,7 @@ def train(
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
-        scheduler.step()
+        scheduler.step(epoch + i / len(data_loader))  # type: ignore[arg-type]
 
         batch_time.update(
             time.perf_counter() - end
