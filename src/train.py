@@ -92,7 +92,6 @@ def main(cfg: DictConfig) -> None:
         acc = validate(
             cfg, model, device, val_loader, criterion, mlflow_manager, iteration
         )
-        scheduler.step()  # type: ignore[no-untyped-call]
         is_best = acc > best_acc
         best_acc = max(acc, best_acc)
         if is_best:
