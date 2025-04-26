@@ -42,7 +42,7 @@ def get_train_dataloader(
         dataset=dataset,
         batch_size=cfg.arch.batch_size,
         shuffle=True,
-        num_workers=cfg.workers,
+        num_workers=os.cpu_count(),  # type: ignore[arg-type]
         pin_memory=True,
         drop_last=True,
         worker_init_fn=seed_worker,
@@ -78,7 +78,7 @@ def get_val_dataloader(
         dataset=dataset,
         batch_size=cfg.arch.batch_size,
         shuffle=False,
-        num_workers=cfg.workers,
+        num_workers=os.cpu_count(),  # type: ignore[arg-type]
         pin_memory=True,
         drop_last=False,
         worker_init_fn=seed_worker,

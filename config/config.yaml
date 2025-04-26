@@ -5,9 +5,8 @@ ckpt_root: !!python/object/apply:pathlib.PosixPath
   - weight
 num_classes: 101
 start_epoch: 1
-epochs: 1
+epochs: 50
 restart: false
-workers: 16
 seed: 42
 print_freq: 100
 
